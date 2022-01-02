@@ -7,9 +7,9 @@ var _ = require("lodash");
 
 export const DEFAULT_HP = 10;
 export const MAX_HP = 15;
-export const DEFAULT_MANA = 10;
-export const MAX_MANA = 15;
-export const MANA_REGEN = 10;
+export const DEFAULT_PA = 10;
+export const MAX_PA = 15;
+export const PA_REGEN = 10;
 
 function isWalkable(tile) {
   return tile === 0;
@@ -29,7 +29,7 @@ let TILES = `
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 `;
 
 let MAP = {
@@ -39,12 +39,6 @@ let MAP = {
     .split(",")
     .map((e) => parseInt(e)),
 };
-
-function sign(x) {
-  if (x < 0) return -1;
-  if (x > 0) return 1;
-  return 0;
-}
 
 /**
  *
@@ -101,7 +95,7 @@ export function rateState(state, fromIdPov) {
   state.chars.forEach((other) => {
     let ally = other.team === myTeam;
     let factor = ally ? 1 : -1;
-    score += (other.mana * 0.0 + Math.pow(other.hp, 0.5)) * factor;
+    score += (other.pa * 0.0 + Math.pow(other.hp, 0.5)) * factor;
 
     if (!ally && other.hp > 0) {
       let d = diffPos(other, current);
@@ -157,12 +151,16 @@ export function enumeratePossibleActions(state) {
   return actions;
 }
 
-const EFFECT_TYPES = {
+export const EFFECT_TYPES = {
   END_TURN: "END_TURN",
-  REGEN_MANA: "REGEN_MANA",
-  LOSE_MANA: "LOSE_MANA",
+  REGEN_PA: "REGEN_PA",
+  LOSE_PA: "LOSE_PA",
   LOSE_HP: "LOSE_HP",
   MOVE: "MOVE",
+
+  //ANIMATION EFFECT
+  ANIM_MOVE: "ANIM_MOVE",
+  ANIM_ATTACK: "ANIM_ATTACK",
 };
 
 /**
@@ -184,7 +182,7 @@ export function evaluateAction(state, action, animate = false) {
   //     let fromChar = s.chars.find((e) => currentCharId === e.id);
 
   //     fromChar.lastPlayedTurn += 1;
-  //     fromChar.mana = Math.min(fromChar.mana + MANA_REGEN, MAX_MANA);
+  //     fromChar.pa = Math.min(fromChar.pa + MANA_REGEN, MAX_MANA);
   //     s.nextChars = nextChars(s);
   //     s.currentChar = s.nextChars[0];
   //   };
@@ -210,7 +208,7 @@ export function evaluateAction(state, action, animate = false) {
       let canReach = d.l > 0 && d.l < 1.5;
       if (canReach) {
         cost = d.l === 1 ? 2 : 3;
-        let hasEnoughMana = cost <= currentChar.mana;
+        let hasEnoughMana = cost <= currentChar.pa;
         if (hasEnoughMana) {
           let noOtherChar =
             state.chars.filter((e) => e.x === action.x && e.y === action.y)
@@ -218,9 +216,15 @@ export function evaluateAction(state, action, animate = false) {
           possible = noOtherChar;
           if (possible) {
             effects.push({
-              type: EFFECT_TYPES.LOSE_MANA,
+              type: EFFECT_TYPES.LOSE_PA,
               charId: currentCharId,
               cost,
+            });
+            effects.push({
+              type: EFFECT_TYPES.ANIM_MOVE,
+              charId: currentCharId,
+              from: { x: currentChar.x, y: currentChar.y },
+              to: { x: action.x, y: action.y },
             });
             effects.push({
               type: EFFECT_TYPES.MOVE,
@@ -240,12 +244,16 @@ export function evaluateAction(state, action, animate = false) {
       let d = diffPos(currentChar, target);
       let canReach = d.l > 0 && d.l < 1.5;
       if (canReach) {
-        let hasEnoughMana = cost <= currentChar.mana;
+        let hasEnoughMana = cost <= currentChar.pa;
         if (hasEnoughMana) {
           possible = true;
-
           effects.push({
-            type: EFFECT_TYPES.LOSE_MANA,
+            type: EFFECT_TYPES.ANIM_ATTACK,
+            charId: currentCharId,
+            d: d,
+          });
+          effects.push({
+            type: EFFECT_TYPES.LOSE_PA,
             charId: currentCharId,
             cost,
           });
@@ -261,37 +269,56 @@ export function evaluateAction(state, action, animate = false) {
   } else if (action.type === "pass") {
     cost = 0;
     possible = true;
-
     effects.push({ type: EFFECT_TYPES.END_TURN, charId: currentCharId });
-    effects.push({ type: EFFECT_TYPES.REGEN_MANA, charId: currentCharId });
   }
 
   return { cost, possible, effects };
 }
 
-function applyEffects(state, effects) {
+function applyEffects(state, effects, animation = false) {
+  if (effects.length === 0) return;
+
+  let newEffects = [];
   effects.forEach((effect) => {
     if (effect.type === EFFECT_TYPES.LOSE_HP) {
       state.chars.find((e) => e.id === effect.charId).hp -= effect.hpLost;
-    } else if (effect.type === EFFECT_TYPES.LOSE_MANA) {
-      state.chars.find((e) => e.id === effect.charId).mana -= effect.cost;
+    } else if (effect.type === EFFECT_TYPES.LOSE_PA) {
+      state.chars.find((e) => e.id === effect.charId).pa -= effect.cost;
     } else if (effect.type === EFFECT_TYPES.MOVE) {
       let char = state.chars.find((e) => e.id === effect.charId);
       char.x = effect.x;
       char.y = effect.y;
-    } else if (effect.type === EFFECT_TYPES.REGEN_MANA) {
+    } else if (effect.type === EFFECT_TYPES.REGEN_PA) {
       let char = state.chars.find((e) => e.id === effect.charId);
-      char.mana = Math.min(char.mana + MANA_REGEN, MAX_MANA);
+      char.pa = Math.min(char.pa + PA_REGEN, MAX_PA);
     } else if (effect.type === EFFECT_TYPES.END_TURN) {
       let char = state.chars.find((e) => e.id === effect.charId);
       char.lastPlayedTurn += 1;
 
       state.nextChars = nextChars(state);
       state.currentChar = state.nextChars[0];
+
+      newEffects.push({ type: EFFECT_TYPES.REGEN_PA, charId: effect.charId });
+    }
+
+    if (animation === true) {
+      if (effect.type === EFFECT_TYPES.ANIM_ATTACK) {
+        state.chars.find((e) => e.id === effect.charId).anim = {
+          ...effect,
+          startTime: performance.now(),
+        };
+      } else if (effect.type === EFFECT_TYPES.ANIM_MOVE) {
+        state.chars.find((e) => e.id === effect.charId).anim = {
+          ...effect,
+          startTime: performance.now(),
+        };
+      }
     }
 
     state.effects.push({ computedAt: performance.now(), ...effect });
   });
+
+  applyEffects(state, newEffects);
 }
 
 function minimalStateCopy(state) {
@@ -311,11 +338,10 @@ function exploreAndRate(state, charIdPov, depth) {
     return rateState(state, charIdPov);
   }
 
-  let prefix = "";
-  if (depth === 3) prefix = " ";
-  if (depth === 2) prefix = "  ";
-  if (depth === 1) prefix = "   ";
-
+  // let prefix = "";
+  // if (depth === 3) prefix = " ";
+  // if (depth === 2) prefix = "  ";
+  // if (depth === 1) prefix = "   ";
   // console.log(prefix, "explore", depth, "current", state.currentChar.name);
   let maxScore = -9999;
 
@@ -384,7 +410,7 @@ function reducer(old, action) {
     state.lastEffectTime = performance.now();
     state.computeTime = computeTime;
 
-    applyEffects(state, effects);
+    applyEffects(state, effects, true);
   }
   console.log("dispatch end");
   return state;
@@ -393,7 +419,7 @@ function reducer(old, action) {
 function defaultState() {
   let randId = () => Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
 
-  let ids = [randId(), randId(), randId(), randId(), randId(), randId()];
+  let ids = [0, randId(), randId(), randId(), randId(), randId()];
 
   let s = {
     lastEffectTime: performance.now(),
@@ -408,7 +434,7 @@ function defaultState() {
         lastPlayedTurn: -1,
         user: "me",
         team: "ia",
-        mana: DEFAULT_MANA,
+        pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[0] + ".svg",
         hp: DEFAULT_HP,
       },
@@ -420,7 +446,7 @@ function defaultState() {
         lastPlayedTurn: -1,
         user: "ia2",
         team: "ia2",
-        mana: DEFAULT_MANA,
+        pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[1] + ".svg",
         hp: DEFAULT_HP,
       },
@@ -432,7 +458,7 @@ function defaultState() {
         lastPlayedTurn: -1,
         user: "ia3",
         team: "ia3",
-        mana: DEFAULT_MANA,
+        pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[2] + ".svg",
         hp: DEFAULT_HP,
       },
@@ -444,7 +470,7 @@ function defaultState() {
         lastPlayedTurn: -1,
         user: "ia4",
         team: "ia4",
-        mana: DEFAULT_MANA,
+        pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[3] + ".svg",
         hp: DEFAULT_HP,
       },
@@ -456,7 +482,7 @@ function defaultState() {
         lastPlayedTurn: -1,
         user: "ia5",
         team: "ia5",
-        mana: DEFAULT_MANA,
+        pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[4] + ".svg",
         hp: DEFAULT_HP,
       },
@@ -479,15 +505,8 @@ function App() {
   useEffect(() => {
     setTimeout(() => {
       dispatch({ type: "animation" });
-    }, 500);
+    }, 1000);
   }, [state]);
-  // useEffect(() => {
-  //   let timer = setInterval(() => dispatch({ type: "animation" }), 500);
-
-  //   return () => {
-  //     clearInterval(timer);
-  //   };
-  // }, []);
 
   return (
     <div className="App">
