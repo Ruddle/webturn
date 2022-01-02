@@ -49,3 +49,7 @@ export let flatstep = (a, b, x) => clamp((x - a) / (b - a), 0, 1);
 export let ease = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 export let smoothstep = (a, b, x) => ease(flatstep(a, b, x));
 export let mix = (a, b, m) => a * (1.0 - m) + b * m;
+
+function asleep(delay) {
+  return new Promise((r) => setTimeout(r, delay));
+}

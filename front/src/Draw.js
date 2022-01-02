@@ -1,15 +1,16 @@
 import { smoothstep, swi, useAnimationFrame } from "./h";
 
 import styled, { keyframes } from "styled-components";
-import { nextChars } from "./Rules";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_HP,
   EFFECT_TYPES,
   enumeratePossibleActions,
   evaluateAction,
+  nextChars,
   MAX_PA,
-} from "./App";
+} from "./StateCompute";
 var _ = require("lodash");
 
 const TILE_WIDTH = 50;
