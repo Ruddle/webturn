@@ -18,15 +18,8 @@ import {
   DEFAULT_PA,
 } from "./StateCompute";
 
-const worker = new MyWorker();
-
-// (async () => {
-//   let res = await worker.test(5);
-//   console.log("wo", res);
-// })();
-
 var _ = require("lodash");
-
+const worker = new MyWorker();
 let TILES = `
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 
@@ -49,7 +42,12 @@ let MAP = {
   h: 14,
   tiles: TILES.replace(" ", "")
     .split(",")
-    .map((e) => parseInt(e)),
+    .map((e) => {
+      return {
+        type: parseInt(e),
+        effects: [],
+      };
+    }),
 };
 
 let alreadyReducing = null;
@@ -59,7 +57,7 @@ async function reducer(old, action) {
     if (old.currentChar.user === "me") {
       return old;
     } else {
-      //await worker.
+      //
       action = await worker.generateBestIAAction(old);
     }
   }
@@ -102,7 +100,7 @@ function defaultState() {
         name: "foo",
         lastPlayedTurn: -1,
         user: "me",
-        team: "ia",
+        team: "1",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[0] + ".svg",
         hp: DEFAULT_HP,
@@ -115,7 +113,7 @@ function defaultState() {
         name: "bar",
         lastPlayedTurn: -1,
         user: "ia2",
-        team: "ia2",
+        team: "2",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[1] + ".svg",
         hp: DEFAULT_HP,
@@ -128,7 +126,7 @@ function defaultState() {
         name: "baz",
         lastPlayedTurn: -1,
         user: "ia3",
-        team: "ia3",
+        team: "3",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[2] + ".svg",
         hp: DEFAULT_HP,
@@ -141,7 +139,7 @@ function defaultState() {
         name: "zoo",
         lastPlayedTurn: -1,
         user: "ia4",
-        team: "ia4",
+        team: "4",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[3] + ".svg",
         hp: DEFAULT_HP,
@@ -154,7 +152,7 @@ function defaultState() {
         name: "moo",
         lastPlayedTurn: -1,
         user: "ia5",
-        team: "ia5",
+        team: "5",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[4] + ".svg",
         hp: DEFAULT_HP,
@@ -198,7 +196,7 @@ function App() {
     setTimeout(() => {
       dispatch({ type: "tick" });
     }, 500);
-  }, [state]);
+  }, [state, dispatch]);
 
   return (
     <div className="App">

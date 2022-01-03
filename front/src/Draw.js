@@ -8,9 +8,12 @@ import {
   EFFECT_TYPES,
   enumeratePossibleActions,
   evaluateAction,
-  nextChars,
   MAX_PA,
+  POWER,
+  radiusToUV,
+  tileName,
 } from "./StateCompute";
+
 var _ = require("lodash");
 
 const TILE_WIDTH = 50;
@@ -42,13 +45,13 @@ export default function Draw({ state, user, do_action }) {
     all.splice(0, all.length - 100);
     return all;
   }, [state]);
-  let nextPlayersMemo = state.nextChars;
+
   let currentChar = state.currentChar;
   let canAction = currentChar.user === user;
 
   const pass = useCallback(() => {
     if (canAction) {
-      do_action({ type: "pass", charId: nextPlayersMemo[0].id, user });
+      do_action({ type: "pass", charId: state.currentChar.id, user });
     }
   }, [state, user, do_action]);
 
@@ -102,63 +105,64 @@ export default function Draw({ state, user, do_action }) {
     let cost = 0;
     let possible = false;
     let eva = null;
+    let rawAction = null;
     //Simple move
     if (selectedPower === null && tileHover !== null && charHover === null) {
       type = "move";
-      eva = evaluateAction(state, {
+      rawAction = {
         type,
         x: tileHover.x,
         y: tileHover.y,
-      });
+      };
     } else if (
       (selectedPower === "attack" || selectedPower === null) &&
       charHover !== null &&
       charHover !== state.currentChar.id
     ) {
       type = "attack";
-      eva = evaluateAction(state, {
+      rawAction = {
         type,
         target: charHover,
-      });
+      };
     } else if (
       selectedPower === "arrow" &&
       charHover !== null &&
       charHover !== state.currentChar.id
     ) {
       type = "arrow";
-      eva = evaluateAction(state, {
+      rawAction = {
         type,
         target: charHover,
-      });
+      };
+    } else if (selectedPower === "fire" && tileHover !== null) {
+      type = "fire";
+      rawAction = {
+        type,
+        x: tileHover.x,
+        y: tileHover.y,
+      };
+    }
+    if (rawAction) {
+      eva = evaluateAction(state, rawAction);
     }
     if (eva) {
       cost = eva.cost;
       possible = eva.possible;
     }
-    setPredictedAction({ type, possible, cost });
+    setPredictedAction({ type, possible, cost, rawAction });
   }, [state, selectedPower, charHover, tileHover, ticker]);
 
-  const tileClick = useCallback(
-    (x, y) => {
-      if (canAction && predictedAction.possible === true) {
-        do_action({ type: "move", x, y, charId: currentChar.id, user });
-      }
-    },
-    [state, user, do_action, currentChar, predictedAction]
-  );
+  const tileClick = useCallback(() => {
+    if (canAction && predictedAction.possible === true) {
+      do_action(predictedAction.rawAction);
+    }
+  }, [do_action, predictedAction]);
 
-  const charClick = useCallback(
-    (charId) => {
-      if (canAction && predictedAction.possible === true) {
-        do_action({
-          type: predictedAction.type,
-          target: charId,
-          charId: currentChar.id,
-        });
-      }
-    },
-    [state, user, do_action, currentChar, predictedAction]
-  );
+  const charClick = useCallback(() => {
+    if (canAction && predictedAction.possible === true) {
+      do_action(predictedAction.rawAction);
+    }
+  }, [do_action, predictedAction]);
 
   let mapRef = useRef();
 
@@ -172,7 +176,7 @@ export default function Draw({ state, user, do_action }) {
         alignItems: "center",
       }}
     >
-      <div>webturn v:0.0.6</div>
+      <div>webturn v:0.0.8</div>
       <div
         style={{
           display: "flex",
@@ -181,92 +185,150 @@ export default function Draw({ state, user, do_action }) {
           boxSizing: "border-box",
         }}
       >
-        {nextPlayersMemo.map((char, index) => (
+        {state.nextChars.map((char, index) =>
+          swi([char === "/", () => <div>|</div>], () => (
+            <div
+              key={char.id + index}
+              onMouseEnter={() => setCharHover(char.id)}
+              onMouseLeave={() => setCharHover(null)}
+              style={{
+                background: charHover === char.id ? "#ccc" : "#fff",
+                padding: "5px",
+                margin: "5px",
+                color: "black",
+                userSelect: "none",
+                border: index === 0 ? "4px solid #aef" : "2px solid #0000",
+                borderRadius: "5px",
+              }}
+            >
+              <div>
+                <img style={{ width: "30px" }} src={char.avatar}></img>
+              </div>
+              {char.name}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ display: "flex" }}>
+        {/* MAP */}
+        <div
+          style={{
+            position: "relative",
+            cursor: swi(
+              [!canAction, "not-allowed"],
+              [predictedAction.type === "attack", "crosshair"],
+              [predictedAction.possible === true, "pointer"],
+              "not-allowed"
+            ),
+          }}
+        >
+          {_.chunk(state.map.tiles, state.map.w).map((row, rowIndex) => (
+            <div key={rowIndex} style={{ display: "flex" }}>
+              {row.map((tile, colIndex) => (
+                <div
+                  key={colIndex}
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    position: "relative",
+                    transition: "50ms",
+                    background: swi(
+                      [tile.type === 1, "#333"],
+                      [
+                        tile.type === 0 &&
+                          tileHover?.index ===
+                            colIndex + state.map.w * rowIndex,
+                        "#bbb",
+                      ],
+                      "#999"
+                    ),
+                  }}
+                >
+                  {tile.effects.map((effect) => (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%,-50%)",
+                        width: "30px",
+                        height: "30px",
+                        background: "#f609",
+                      }}
+                    ></div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
           <div
-            key={char.id + index}
-            onMouseEnter={() => setCharHover(char.id)}
-            onMouseLeave={() => setCharHover(null)}
+            onClick={() => tileClick(tileHover.x, tileHover.y)}
+            ref={mapRef}
+            onMouseMove={(e) => {
+              let bb = mapRef.current.getBoundingClientRect();
+              let x = Math.floor((e.clientX - bb.x) / TILE_WIDTH);
+              let y = Math.floor((e.clientY - bb.y) / TILE_WIDTH);
+              let index = x + state.map.w * y;
+              setTileHover({ x, y, index });
+            }}
             style={{
-              background: charHover === char.id ? "#ccc" : "#fff",
-              padding: "5px",
-              margin: "5px",
-              color: "black",
-              userSelect: "none",
-              border: index === 0 ? "4px solid #aef" : "2px solid #0000",
-              borderRadius: "5px",
+              position: "absolute",
+              top: "0px",
+              left: "0px",
+              width: "100%",
+              height: "100%",
+            }}
+          ></div>
+
+          {/* POWER RADIUS */}
+          <div
+            style={{
+              position: "absolute",
+              top: "0px",
+              left: "0px",
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
             }}
           >
-            <div>
-              <img style={{ width: "30px" }} src={char.avatar}></img>
-            </div>
-            {char.name}
+            {tileHover &&
+              predictedAction &&
+              POWER[predictedAction.type] &&
+              POWER[predictedAction.type].radius !== undefined &&
+              radiusToUV(POWER[predictedAction.type].radius).map(({ u, v }) => (
+                <div
+                  key={u + "/" + v}
+                  style={{
+                    position: "absolute",
+                    left: TILE_WIDTH * (u + tileHover.x) + "px",
+                    top: TILE_WIDTH * (v + tileHover.y) + "px",
+                    width: "50px",
+                    height: "50px",
+                    background: "#fff5",
+                  }}
+                ></div>
+              ))}
           </div>
-        ))}
-      </div>
-      <div
-        style={{
-          position: "relative",
-          cursor: swi(
-            [!canAction, "not-allowed"],
-            [predictedAction.type === "attack", "crosshair"],
-            [predictedAction.possible === true, "pointer"],
-            "not-allowed"
-          ),
-        }}
-      >
-        {_.chunk(state.map.tiles, state.map.w).map((row, rowIndex) => (
-          <div key={rowIndex} style={{ display: "flex" }}>
-            {row.map((e, colIndex) => (
-              <div
-                key={colIndex}
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  transition: "50ms",
-                  background: swi(
-                    [e === 1, "#333"],
-                    [
-                      e === 0 &&
-                        tileHover?.index === colIndex + state.map.w * rowIndex,
-                      "#bbb",
-                    ],
-                    "#999"
-                  ),
-                }}
-              ></div>
-            ))}
-          </div>
-        ))}
-        <div
-          onClick={() => tileClick(tileHover.x, tileHover.y)}
-          ref={mapRef}
-          onMouseMove={(e) => {
-            let bb = mapRef.current.getBoundingClientRect();
-            let x = Math.floor((e.clientX - bb.x) / TILE_WIDTH);
-            let y = Math.floor((e.clientY - bb.y) / TILE_WIDTH);
-            let index = x + state.map.w * y;
-            setTileHover({ x, y, index });
-          }}
-          style={{
-            position: "absolute",
-            top: "0px",
-            left: "0px",
-            width: "100%",
-            height: "100%",
-          }}
-        ></div>
 
-        {state.chars.map((char) => (
-          <DisplayChar
-            key={"cahr" + char.id}
-            charHover={charHover}
-            onMouseEnter={() => setCharHover(char.id)}
-            onMouseLeave={() => setCharHover(null)}
-            onClick={() => charClick(char.id)}
-            currentChar={currentChar}
-            char={char}
-          ></DisplayChar>
-        ))}
+          {state.chars.map((char) => (
+            <DisplayChar
+              key={"cahr" + char.id}
+              charHover={charHover}
+              onMouseEnter={() => setCharHover(char.id)}
+              onMouseLeave={() => setCharHover(null)}
+              onClick={() => charClick(char.id)}
+              currentChar={currentChar}
+              char={char}
+            ></DisplayChar>
+          ))}
+        </div>
+        {/* DETAIL */}
+        <Detail
+          tileHover={tileHover}
+          charHover={charHover}
+          state={state}
+        ></Detail>
       </div>
 
       <div
@@ -366,28 +428,31 @@ export default function Draw({ state, user, do_action }) {
               Attack
             </Power>
 
-            <Power
-              onClick={() => {
-                if (!currentChar.cooldown["arrow"]) {
-                  setSelectedPower((old) => (old === "arrow" ? null : "arrow"));
-                }
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: swi(
-                  [currentChar.cooldown["arrow"], "#a00"],
-                  selectedPower === "arrow" ? "#999" : "#333"
-                ),
-                color: "white",
-                border: "3px solid #000",
-              }}
-            >
-              Arrow
-              {currentChar.cooldown["arrow"] &&
-                " (" + currentChar.cooldown["arrow"] + ")"}
-            </Power>
+            {["arrow", "fire"].map((power) => (
+              <Power
+                key={power}
+                onClick={() => {
+                  if (!currentChar.cooldown[power]) {
+                    setSelectedPower((old) => (old === power ? null : power));
+                  }
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: swi(
+                    [currentChar.cooldown[power], "#a00"],
+                    selectedPower === power ? "#999" : "#333"
+                  ),
+                  color: "white",
+                  border: "3px solid #000",
+                }}
+              >
+                {power}
+                {currentChar.cooldown[power] &&
+                  " (" + currentChar.cooldown[power] + ")"}
+              </Power>
+            ))}
           </div>
         </div>
 
@@ -487,7 +552,7 @@ function HoriChar({ name, avatar }) {
 function CharEffect({ effect, state }) {
   let char = useMemo(() => {
     return state.chars.find((e) => e.id === effect.charId);
-  });
+  }, [state]);
 
   let simpleE = useMemo(() => {
     let a = _.cloneDeep(effect);
@@ -507,7 +572,7 @@ function CharEffect({ effect, state }) {
       }}
     >
       <div style={{ marginRight: "40px" }}></div>
-      <HoriChar name={char.name} avatar={char.avatar}></HoriChar>
+      {char && <HoriChar name={char.name} avatar={char.avatar}></HoriChar>}
       <div
         style={{
           fontWeight: "500",
@@ -616,6 +681,8 @@ function DisplayChar({
 
   let [position, setPosition] = useState({ x: char.x, y: char.y });
 
+  let [endTurnAnim, setEndTurnAnim] = useState(null);
+
   useAnimationFrame(() => {
     let current = charRef.current;
     if (!current.anim) {
@@ -646,6 +713,15 @@ function DisplayChar({
             current.y * (1 - dd) +
             (current.y + (0.5 * current.anim.d.y) / current.anim.d.l) * dd,
         });
+      } else if (current.anim.type === EFFECT_TYPES.ANIM_END_TURN) {
+        let dd = -(30 + smoothstep(0, 1, lambda) * 10);
+        setEndTurnAnim({
+          y: dd + "px",
+          opacity: smoothstep(0, 0.4, lambda) * smoothstep(1, 0.7, lambda),
+        });
+        if (lambda === 1) {
+          setEndTurnAnim(null);
+        }
       }
       if (lambda === 1) {
         current.anim = null;
@@ -682,7 +758,37 @@ function DisplayChar({
         // transition: "300ms",
       }}
     >
-      {" "}
+      {/* endTurnAnim */}
+      {endTurnAnim && (
+        <div
+          key="endTurn"
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "0px",
+            transform: "translate(-50%," + endTurnAnim.y + ")",
+            zIndex: "500",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff9",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              opacity: endTurnAnim.opacity,
+            }}
+          >
+            <img
+              style={{ width: "20px" }}
+              src={process.env.PUBLIC_URL + "/img/time.svg"}
+            ></img>
+          </div>
+        </div>
+      )}{" "}
       <img style={{ width: "30px" }} src={avatar}></img>
       <div
         style={{
@@ -709,6 +815,99 @@ function DisplayChar({
           ></div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function DLine({ category, value }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        border: "1px solid white",
+        margin: "5px",
+        padding: "5px",
+        alignItems: "center",
+        justifyContent: "flex-start",
+      }}
+    >
+      <div style={{ width: "100px", flex: "none", textAlign: "left" }}>
+        {category}
+      </div>
+      <div style={{ width: "100px", textAlign: "left" }}>{value}</div>
+    </div>
+  );
+}
+
+function Detail({ tileHover, charHover, state }) {
+  let char = useMemo(() => {
+    return state.chars.find((e) => e.id === charHover);
+  }, [state, charHover]);
+
+  let tile = useMemo(() => {
+    if (!tileHover) return;
+    return state.map.tiles[tileHover.index];
+  }, [tileHover, state]);
+
+  return (
+    <div
+      style={{
+        marginLeft: "50px",
+        width: "300px",
+        height: "500px",
+        background: "#345",
+        color: "#fff",
+      }}
+    >
+      {swi(
+        [
+          char,
+          () => (
+            <div>
+              <div style={{ margin: "10px" }}>
+                <img src={char.avatar} style={{ width: "30px" }}></img>
+              </div>
+              <div style={{ margin: "10px" }}>{char.name}</div>
+              <DLine category={"team"} value={char.team}></DLine>
+              <DLine category={"user"} value={char.user}></DLine>
+              <DLine category={"hp"} value={char.hp}></DLine>
+              <DLine category={"pa"} value={char.pa}></DLine>
+              {Object.keys(char.cooldown).length > 0 && (
+                <>
+                  <div>Cooldown</div>
+                  {Object.keys(char.cooldown).map((k) => (
+                    <DLine category={k} value={char.cooldown[k]}></DLine>
+                  ))}
+                </>
+              )}
+            </div>
+          ),
+        ],
+        [
+          tile,
+          () => (
+            <div>
+              {" "}
+              <DLine category={"type"} value={tileName(tile)}></DLine>
+              {tile.effects.length > 0 && (
+                <>
+                  <div>Effects</div>
+                  {tile.effects.map((effect) => (
+                    <div>
+                      <DLine category={"type"} value={effect.type}></DLine>
+                      <DLine
+                        category={"cooldown"}
+                        value={effect.cooldown}
+                      ></DLine>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          ),
+        ],
+        <div>Hover something</div>
+      )}
     </div>
   );
 }
