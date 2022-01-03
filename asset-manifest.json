@@ -1,16 +1,16 @@
 {
   "files": {
     "main.css": "/webturn/static/css/main.073c9b0a.css",
-    "main.js": "/webturn/static/js/main.2798027e.js",
+    "main.js": "/webturn/static/js/main.d2fef806.js",
     "static/js/787.deffc097.chunk.js": "/webturn/static/js/787.deffc097.chunk.js",
-    "worker.js": "/webturn/59975933966962bf7f19.worker.js",
+    "worker.js": "/webturn/b94f1f18766d55bcaffc.worker.js",
     "index.html": "/webturn/index.html",
     "main.073c9b0a.css.map": "/webturn/static/css/main.073c9b0a.css.map",
-    "main.2798027e.js.map": "/webturn/static/js/main.2798027e.js.map",
+    "main.d2fef806.js.map": "/webturn/static/js/main.d2fef806.js.map",
     "787.deffc097.chunk.js.map": "/webturn/static/js/787.deffc097.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.073c9b0a.css",
-    "static/js/main.2798027e.js"
+    "static/js/main.d2fef806.js"
   ]
 }
