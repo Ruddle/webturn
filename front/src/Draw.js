@@ -103,7 +103,7 @@ export default function Draw({ state, user, do_action }) {
     let possible = false;
     let eva = null;
     //Simple move
-    if (selectedPower === null && tileHover !== null) {
+    if (selectedPower === null && tileHover !== null && charHover === null) {
       type = "move";
       eva = evaluateAction(state, {
         type,
@@ -116,6 +116,16 @@ export default function Draw({ state, user, do_action }) {
       charHover !== state.currentChar.id
     ) {
       type = "attack";
+      eva = evaluateAction(state, {
+        type,
+        target: charHover,
+      });
+    } else if (
+      selectedPower === "arrow" &&
+      charHover !== null &&
+      charHover !== state.currentChar.id
+    ) {
+      type = "arrow";
       eva = evaluateAction(state, {
         type,
         target: charHover,
@@ -162,7 +172,7 @@ export default function Draw({ state, user, do_action }) {
         alignItems: "center",
       }}
     >
-      <div>webturn v:0.0.3</div>
+      <div>webturn v:0.0.6</div>
       <div
         style={{
           display: "flex",
@@ -355,6 +365,29 @@ export default function Draw({ state, user, do_action }) {
             >
               Attack
             </Power>
+
+            <Power
+              onClick={() => {
+                if (!currentChar.cooldown["arrow"]) {
+                  setSelectedPower((old) => (old === "arrow" ? null : "arrow"));
+                }
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: swi(
+                  [currentChar.cooldown["arrow"], "#a00"],
+                  selectedPower === "arrow" ? "#999" : "#333"
+                ),
+                color: "white",
+                border: "3px solid #000",
+              }}
+            >
+              Arrow
+              {currentChar.cooldown["arrow"] &&
+                " (" + currentChar.cooldown["arrow"] + ")"}
+            </Power>
           </div>
         </div>
 
@@ -543,7 +576,7 @@ function ActionEffectFrag({ action, state }) {
           ),
         ],
         [
-          action.type === "attack",
+          action.type === "attack" || action.type === "arrow",
           () => {
             let t = state.chars.find((e) => e.id === action.target);
             return (
@@ -599,10 +632,19 @@ function DisplayChar({
         });
       } else if (current.anim.type === EFFECT_TYPES.ANIM_ATTACK) {
         let dd = smoothstep(0, 0.5, lambda) * smoothstep(1.0, 0.5, lambda);
-
         setPosition({
           x: current.x * (1 - dd) + (current.x + current.anim.d.x * 0.5) * dd,
           y: current.y * (1 - dd) + (current.y + current.anim.d.y * 0.5) * dd,
+        });
+      } else if (current.anim.type === EFFECT_TYPES.ANIM_ARROW) {
+        let dd = smoothstep(0, 0.5, lambda) * smoothstep(1.0, 0.5, lambda);
+        setPosition({
+          x:
+            current.x * (1 - dd) +
+            (current.x + (0.5 * current.anim.d.x) / current.anim.d.l) * dd,
+          y:
+            current.y * (1 - dd) +
+            (current.y + (0.5 * current.anim.d.y) / current.anim.d.l) * dd,
         });
       }
       if (lambda === 1) {

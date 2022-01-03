@@ -6,6 +6,23 @@ export const DEFAULT_PA = 10;
 export const MAX_PA = 15;
 export const PA_REGEN = 10;
 
+const POWER = {
+  arrow: {
+    name: "arrow",
+    damage: 1,
+    cooldown: 2,
+    cost: 4,
+    maxDist: 15,
+  },
+  fire: {
+    name: "fire",
+    damage: 2,
+    cooldown: 4,
+    cost: 5,
+    maxDist: 15,
+  },
+};
+
 /**
  *
  * @param {Object} a
@@ -72,7 +89,7 @@ export function rateState(state, fromIdPov) {
   });
 
   if (closestEnnemy) {
-    score -= closestEnnemy.l * 0.1;
+    score -= closestEnnemy.l * 0.01;
   }
 
   return score;
@@ -99,6 +116,12 @@ export function enumeratePossibleActions(state) {
   state.chars.forEach((enemy) => {
     if (enemy.team !== currentChar.team) {
       allActions.push({ type: "attack", target: enemy.id });
+    }
+  });
+  //Arrow
+  state.chars.forEach((enemy) => {
+    if (enemy.team !== currentChar.team) {
+      allActions.push({ type: "arrow", target: enemy.id });
     }
   });
   //Pass
@@ -151,9 +174,12 @@ export const EFFECT_TYPES = {
   LOSE_HP: "LOSE_HP",
   MOVE: "MOVE",
 
+  EMPTY_POWER: "EMPTY_POWER",
+
   //ANIMATION EFFECT
   ANIM_MOVE: "ANIM_MOVE",
   ANIM_ATTACK: "ANIM_ATTACK",
+  ANIM_ARROW: "ANIM_ARROW",
 };
 
 /**
@@ -235,6 +261,44 @@ export function evaluateAction(state, action) {
         }
       }
     }
+  } else if (action.type === "arrow") {
+    let power = POWER[action.type];
+    cost = power.cost;
+    let target = state.chars.find((e) => e.id === action.target);
+
+    if (!currentChar.cooldown["arrow"] && target.hp > 0) {
+      let d = diffPos(currentChar, target);
+      let canReach = d.l > 0 && d.l <= power.maxDist;
+      if (canReach) {
+        let hasEnoughMana = cost <= currentChar.pa;
+        if (hasEnoughMana) {
+          possible = true;
+          effects.push({
+            type: EFFECT_TYPES.EMPTY_POWER,
+            charId: currentCharId,
+            power: power.name,
+          });
+          effects.push({
+            type: EFFECT_TYPES.ANIM_ARROW,
+            charId: currentCharId,
+            from: { x: currentChar.x, y: currentChar.y },
+            to: { x: target.x, y: target.y },
+            d: d,
+          });
+          effects.push({
+            type: EFFECT_TYPES.LOSE_PA,
+            charId: currentCharId,
+            cost,
+          });
+
+          effects.push({
+            type: EFFECT_TYPES.LOSE_HP,
+            charId: action.target,
+            hpLost: 1,
+          });
+        }
+      }
+    }
   } else if (action.type === "pass") {
     cost = 0;
     possible = true;
@@ -253,6 +317,9 @@ export function applyEffects(state, effects, animation = false) {
       state.chars.find((e) => e.id === effect.charId).hp -= effect.hpLost;
     } else if (effect.type === EFFECT_TYPES.LOSE_PA) {
       state.chars.find((e) => e.id === effect.charId).pa -= effect.cost;
+    } else if (effect.type === EFFECT_TYPES.EMPTY_POWER) {
+      state.chars.find((e) => e.id === effect.charId).cooldown[effect.power] =
+        POWER[effect.power].cooldown;
     } else if (effect.type === EFFECT_TYPES.MOVE) {
       let char = state.chars.find((e) => e.id === effect.charId);
       char.x = effect.x;
@@ -262,6 +329,14 @@ export function applyEffects(state, effects, animation = false) {
       char.pa = Math.min(char.pa + PA_REGEN, MAX_PA);
     } else if (effect.type === EFFECT_TYPES.END_TURN) {
       let char = state.chars.find((e) => e.id === effect.charId);
+      Object.keys(char.cooldown).forEach((k) => {
+        let v = char.cooldown[k];
+        if (v === 1) {
+          delete char.cooldown[k];
+        } else {
+          char.cooldown[k] -= 1;
+        }
+      });
       char.lastPlayedTurn += 1;
 
       state.nextChars = nextChars(state);
@@ -271,12 +346,13 @@ export function applyEffects(state, effects, animation = false) {
     }
 
     if (animation === true) {
-      if (effect.type === EFFECT_TYPES.ANIM_ATTACK) {
-        state.chars.find((e) => e.id === effect.charId).anim = {
-          ...effect,
-          startTime: performance.now(),
-        };
-      } else if (effect.type === EFFECT_TYPES.ANIM_MOVE) {
+      if (
+        [
+          EFFECT_TYPES.ANIM_ATTACK,
+          EFFECT_TYPES.ANIM_MOVE,
+          EFFECT_TYPES.ANIM_ARROW,
+        ].includes(effect.type)
+      ) {
         state.chars.find((e) => e.id === effect.charId).anim = {
           ...effect,
           startTime: performance.now(),
@@ -352,3 +428,5 @@ export let nextChars = (state) => {
   }
   return nexts.slice(0, 10);
 };
+
+let test = 0;

@@ -1,4 +1,7 @@
 import "./App.css";
+// eslint-disable-next-line
+import MyWorker from "comlink-loader!./StateCompute";
+
 import Draw from "./Draw";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -11,11 +14,16 @@ import {
   DEFAULT_HP,
   nextChars,
   bestAction,
+  generateBestIAAction,
   DEFAULT_PA,
 } from "./StateCompute";
-/* eslint import/no-webpack-loader-syntax: off */
-import MyWorker from "comlink-loader!./StateCompute";
+
 const worker = new MyWorker();
+
+// (async () => {
+//   let res = await worker.test(5);
+//   console.log("wo", res);
+// })();
 
 var _ = require("lodash");
 
@@ -51,6 +59,7 @@ async function reducer(old, action) {
     if (old.currentChar.user === "me") {
       return old;
     } else {
+      //await worker.
       action = await worker.generateBestIAAction(old);
     }
   }
@@ -97,6 +106,7 @@ function defaultState() {
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[0] + ".svg",
         hp: DEFAULT_HP,
+        cooldown: {},
       },
       {
         id: ids[1],
@@ -109,6 +119,7 @@ function defaultState() {
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[1] + ".svg",
         hp: DEFAULT_HP,
+        cooldown: {},
       },
       {
         id: ids[2],
@@ -121,6 +132,7 @@ function defaultState() {
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[2] + ".svg",
         hp: DEFAULT_HP,
+        cooldown: {},
       },
       {
         id: ids[3],
@@ -133,6 +145,7 @@ function defaultState() {
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[3] + ".svg",
         hp: DEFAULT_HP,
+        cooldown: {},
       },
       {
         id: ids[4],
@@ -145,6 +158,7 @@ function defaultState() {
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[4] + ".svg",
         hp: DEFAULT_HP,
+        cooldown: {},
       },
     ],
     actions: [],
