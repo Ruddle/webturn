@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/webturn/static/css/main.a617e044.chunk.css",
-    "main.js": "/webturn/static/js/main.6308c8ff.chunk.js",
-    "main.js.map": "/webturn/static/js/main.6308c8ff.chunk.js.map",
+    "main.js": "/webturn/static/js/main.f98edf43.chunk.js",
+    "main.js.map": "/webturn/static/js/main.f98edf43.chunk.js.map",
     "runtime-main.js": "/webturn/static/js/runtime-main.d73cda37.js",
     "runtime-main.js.map": "/webturn/static/js/runtime-main.d73cda37.js.map",
     "static/js/2.662a6017.chunk.js": "/webturn/static/js/2.662a6017.chunk.js",
@@ -20,6 +20,6 @@
     "static/js/runtime-main.d73cda37.js",
     "static/js/2.662a6017.chunk.js",
     "static/css/main.a617e044.chunk.css",
-    "static/js/main.6308c8ff.chunk.js"
+    "static/js/main.f98edf43.chunk.js"
   ]
 }
