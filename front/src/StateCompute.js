@@ -117,6 +117,33 @@ export function enumeratePossibleActions(state) {
   return actions;
 }
 
+export function bestAction(old, actions_) {
+  let actions = actions_.map((action) => {
+    let newSubState = minimalStateCopy(old);
+
+    applyEffects(newSubState, action.effects);
+    // let score = rateState(newSubState, old.currentChar.id);
+
+    let score = exploreAndRate(newSubState, old.currentChar.id, 4);
+
+    return { ...action, score };
+  });
+
+  //Take one of the best outcome
+  actions.sort((a, b) => b.score - a.score);
+  actions = _.takeWhile(actions, (e) => e.score === actions[0].score);
+
+  return _.sample(actions);
+}
+
+export function generateBestIAAction(state) {
+  let start = performance.now();
+  let actions = enumeratePossibleActions(state);
+  let action = bestAction(state, actions);
+  console.log("IA PLAY took:", performance.now() - start, "ms");
+  return action;
+}
+
 export const EFFECT_TYPES = {
   END_TURN: "END_TURN",
   REGEN_PA: "REGEN_PA",
@@ -135,37 +162,13 @@ export const EFFECT_TYPES = {
  * @param {*} action
  * @returns {{cost:number, possible:boolean, effect : *}}
  */
-export function evaluateAction(state, action, animate = false) {
+export function evaluateAction(state, action) {
   const currentChar = state.currentChar;
   const currentCharId = state.currentChar.id;
   let cost = 0;
   let possible = false;
 
   let effects = [];
-
-  // let endCharTurn = (s, t) => {
-  //   let sideEffect = (s) => {
-  //     let fromChar = s.chars.find((e) => currentCharId === e.id);
-
-  //     fromChar.lastPlayedTurn += 1;
-  //     fromChar.pa = Math.min(fromChar.pa + MANA_REGEN, MAX_MANA);
-  //     s.nextChars = nextChars(s);
-  //     s.currentChar = s.nextChars[0];
-  //   };
-  //   if (animate) {
-  //     const start = performance.now();
-  //     s.animating = true;
-  //     s.stepAnimation = (s, t) => {
-  //       let dt = t - start;
-  //       if (dt > 500) {
-  //         sideEffect(s);
-  //         s.animating = false;
-  //       }
-  //     };
-  //   } else {
-  //     sideEffect(s);
-  //   }
-  // };
 
   if (action.type === "move") {
     let tile = tileFromPos(action, state.map);
@@ -291,7 +294,7 @@ export function minimalStateCopy(state) {
   return _.cloneDeep({
     chars: state.chars,
     map: state.map,
-    animating: false,
+
     currentChar: state.currentChar,
     nextChars: state.nextChars,
     actions: [],

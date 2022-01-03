@@ -10,8 +10,13 @@ import {
   minimalStateCopy,
   DEFAULT_HP,
   nextChars,
+  bestAction,
   DEFAULT_PA,
 } from "./StateCompute";
+/* eslint import/no-webpack-loader-syntax: off */
+import MyWorker from "comlink-loader!./StateCompute";
+const worker = new MyWorker();
+
 var _ = require("lodash");
 
 let TILES = `
@@ -42,42 +47,15 @@ let MAP = {
 let alreadyReducing = null;
 async function reducer(old, action) {
   console.log("dispatch start", action.type);
-  if (old.animating === false && action.type === "animation") {
+  if (action.type === "tick") {
     if (old.currentChar.user === "me") {
       return old;
     } else {
-      //IA PLAY
-
-      let start = performance.now();
-      console.log("IA PLAY");
-      let actions = enumeratePossibleActions(old);
-
-      actions = actions.map((action) => {
-        let newSubState = minimalStateCopy(old);
-
-        applyEffects(newSubState, action.effects);
-        // let score = rateState(newSubState, old.currentChar.id);
-
-        let score = exploreAndRate(newSubState, old.currentChar.id, 4);
-
-        return { ...action, score };
-      });
-
-      //Take one of the best outcome
-      actions.sort((a, b) => b.score - a.score);
-      actions = _.takeWhile(actions, (e) => e.score === actions[0].score);
-
-      action = _.sample(actions);
-      console.log("IA PLAY took:", performance.now() - start, "ms");
+      action = await worker.generateBestIAAction(old);
     }
   }
   let state = _.cloneDeep(old);
-  if (state.animating === true && action.type === "animation") {
-    let time = performance.now();
-    state.stepAnimation(state, time);
 
-    return state;
-  }
   let { cost, possible, effects } = evaluateAction(
     state,
     action,
@@ -90,10 +68,6 @@ async function reducer(old, action) {
       char: state.currentChar,
       cost,
     });
-
-    let computeTime = performance.now() - state.lastEffectTime;
-    state.lastEffectTime = performance.now();
-    state.computeTime = computeTime;
 
     applyEffects(state, effects, true);
   }
@@ -109,7 +83,7 @@ function defaultState() {
 
   let s = {
     lastEffectTime: performance.now(),
-    animating: false,
+
     map: MAP,
     chars: [
       {
@@ -196,6 +170,7 @@ function App() {
         "while starting",
         action
       );
+      if (action.type === "tick") return;
     }
     alreadyReducing = action;
     stateRef.current = await reducer(stateRef.current, action);
@@ -207,8 +182,8 @@ function App() {
 
   useEffect(() => {
     setTimeout(() => {
-      dispatch({ type: "animation" });
-    }, 1000);
+      dispatch({ type: "tick" });
+    }, 500);
   }, [state]);
 
   return (

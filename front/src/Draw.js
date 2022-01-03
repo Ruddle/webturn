@@ -15,12 +15,6 @@ var _ = require("lodash");
 
 const TILE_WIDTH = 50;
 
-const Tile = styled.div`
-  width: 50px;
-  height: 50px;
-  transition: 200ms;
-`;
-
 const Power = styled.div`
   width: 50px;
   height: 50px;
@@ -33,7 +27,9 @@ const Power = styled.div`
 
 export default function Draw({ state, user, do_action }) {
   let [charHover, setCharHover] = useState(null);
-  let [tileHover, setTileHover] = useState(null);
+  let [tileHover, setTileHover_] = useState(null);
+
+  let setTileHover = useMemo(() => _.throttle(setTileHover_, 30), []);
 
   let actionsEffects = useMemo(() => {
     let all = state.actions
@@ -75,7 +71,6 @@ export default function Draw({ state, user, do_action }) {
   }, [state]);
 
   let possibleActions = useMemo(() => {
-    if (state.animating) return [];
     return enumeratePossibleActions(state).map((e) => {
       delete e.effects;
       return e;
@@ -103,7 +98,6 @@ export default function Draw({ state, user, do_action }) {
       timer.current.tickAfter = true;
       return;
     }
-
     let type = "none";
     let cost = 0;
     let possible = false;
@@ -155,6 +149,8 @@ export default function Draw({ state, user, do_action }) {
     },
     [state, user, do_action, currentChar, predictedAction]
   );
+
+  let mapRef = useRef();
 
   return (
     <div
@@ -211,18 +207,12 @@ export default function Draw({ state, user, do_action }) {
         {_.chunk(state.map.tiles, state.map.w).map((row, rowIndex) => (
           <div key={rowIndex} style={{ display: "flex" }}>
             {row.map((e, colIndex) => (
-              <Tile
+              <div
                 key={colIndex}
-                onMouseEnter={() =>
-                  setTileHover({
-                    x: colIndex,
-                    y: rowIndex,
-                    index: colIndex + state.map.w * rowIndex,
-                  })
-                }
-                onMouseLeave={() => setTileHover(null)}
-                onClick={() => tileClick(colIndex, rowIndex)}
                 style={{
+                  width: "50px",
+                  height: "50px",
+                  transition: "50ms",
                   background: swi(
                     [e === 1, "#333"],
                     [
@@ -230,13 +220,31 @@ export default function Draw({ state, user, do_action }) {
                         tileHover?.index === colIndex + state.map.w * rowIndex,
                       "#bbb",
                     ],
-                    [e === 0, "#999"]
+                    "#999"
                   ),
                 }}
-              ></Tile>
+              ></div>
             ))}
           </div>
         ))}
+        <div
+          onClick={() => tileClick(tileHover.x, tileHover.y)}
+          ref={mapRef}
+          onMouseMove={(e) => {
+            let bb = mapRef.current.getBoundingClientRect();
+            let x = Math.floor((e.clientX - bb.x) / TILE_WIDTH);
+            let y = Math.floor((e.clientY - bb.y) / TILE_WIDTH);
+            let index = x + state.map.w * y;
+            setTileHover({ x, y, index });
+          }}
+          style={{
+            position: "absolute",
+            top: "0px",
+            left: "0px",
+            width: "100%",
+            height: "100%",
+          }}
+        ></div>
 
         {state.chars.map((char) => (
           <DisplayChar
@@ -605,6 +613,7 @@ function DisplayChar({
 
   return (
     <div
+      key={id}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onClick={onClick}
