@@ -48,6 +48,9 @@ export default function Draw({ state, user, do_action }) {
 
   let currentChar = state.currentChar;
   let canAction = currentChar.user === user;
+  let myTeam = useMemo(() => {
+    return state.chars.find((e) => e.user === user).team;
+  }, [state, user]);
 
   const pass = useCallback(() => {
     if (canAction) {
@@ -176,7 +179,7 @@ export default function Draw({ state, user, do_action }) {
         alignItems: "center",
       }}
     >
-      <div>webturn v:0.0.8</div>
+      <div>webturn v:0.0.9</div>
       <div
         style={{
           display: "flex",
@@ -309,6 +312,27 @@ export default function Draw({ state, user, do_action }) {
                   }}
                 ></div>
               ))}
+
+            {predictedAction &&
+              POWER[predictedAction.type] &&
+              POWER[predictedAction.type].maxDist !== undefined && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: (currentChar.y + 0.5) * TILE_WIDTH + "px",
+                    left: (currentChar.x + 0.5) * TILE_WIDTH + "px",
+                    width:
+                      POWER[predictedAction.type].maxDist * 2 * TILE_WIDTH +
+                      "px",
+                    height:
+                      POWER[predictedAction.type].maxDist * 2 * TILE_WIDTH +
+                      "px",
+                    transform: "translate(-50%,-50%)",
+                    borderRadius: "50%",
+                    background: "#0f94",
+                  }}
+                ></div>
+              )}
           </div>
 
           {state.chars.map((char) => (
@@ -320,8 +344,30 @@ export default function Draw({ state, user, do_action }) {
               onClick={() => charClick(char.id)}
               currentChar={currentChar}
               char={char}
+              myTeam={myTeam}
             ></DisplayChar>
           ))}
+          {/* {state.objects.map((object) => (
+            <div
+              key={object.id}
+              style={{
+                position: "absolute",
+                top: object.y * TILE_WIDTH + "px",
+                left: object.x * TILE_WIDTH + "px",
+                width: TILE_WIDTH + "px",
+                height: TILE_WIDTH + "px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "painted",
+              }}
+            >
+              <img
+                style={{ height: "30px", pointerEvents: "visible" }}
+                src={process.env.PUBLIC_URL + "/img/barrel.svg"}
+              ></img>
+            </div>
+          ))} */}
         </div>
         {/* DETAIL */}
         <Detail
@@ -671,8 +717,11 @@ function DisplayChar({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  myTeam,
 }) {
   let { id, hp, avatar } = char;
+
+  let ally = char.team === myTeam;
 
   let charRef = useRef(char);
   useEffect(() => {
@@ -729,6 +778,24 @@ function DisplayChar({
     }
   });
 
+  let boxShadow = useMemo(() => {
+    let arr = [];
+    arr.push("0px 0px 0px 2px " + (ally ? "#0f0" : "#f00"));
+
+    if (currentChar.id === char.id) {
+      arr.push("0px 0px 5px #0009");
+      arr.push("0px 0px 20px blue");
+    } else {
+      arr.push("0px 0px 20px #0009");
+    }
+
+    return arr.join(",");
+  }, [currentChar, ally, char]);
+
+  useEffect(() => {
+    console.log(boxShadow);
+  }, [boxShadow]);
+
   return (
     <div
       key={id}
@@ -745,10 +812,8 @@ function DisplayChar({
         width: TILE_WIDTH * 0.7 + "px",
         height: TILE_WIDTH * 0.7 + "px",
 
-        boxShadow:
-          currentChar.id === id
-            ? "0px 0px 20px blue,0px 0px 5px #0009"
-            : "0px 0px 20px #0009",
+        boxShadow,
+
         borderRadius: "50%",
         display: "flex",
         flexDirection: "column",

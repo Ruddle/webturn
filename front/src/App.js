@@ -1,21 +1,14 @@
-import "./App.css";
 // eslint-disable-next-line
 import MyWorker from "comlink-loader!./StateCompute";
-
-import Draw from "./Draw";
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import "./App.css";
+import Draw from "./Draw";
 import {
   applyEffects,
-  enumeratePossibleActions,
-  evaluateAction,
-  exploreAndRate,
-  minimalStateCopy,
   DEFAULT_HP,
-  nextChars,
-  bestAction,
-  generateBestIAAction,
   DEFAULT_PA,
+  evaluateAction,
+  nextChars,
 } from "./StateCompute";
 
 var _ = require("lodash");
@@ -92,6 +85,17 @@ function defaultState() {
     lastEffectTime: performance.now(),
 
     map: MAP,
+    objects: [
+      {
+        id: randId(),
+        type: "barrel",
+        name: "barrel",
+        x: 6,
+        y: 6,
+        hp: 1,
+        onDestroyEffect: { type: "explode", damage: 1, radius: 2 },
+      },
+    ],
     chars: [
       {
         id: ids[0],
@@ -112,8 +116,8 @@ function defaultState() {
         y: 2,
         name: "bar",
         lastPlayedTurn: -1,
-        user: "ia2",
-        team: "2",
+        user: "me",
+        team: "1",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[1] + ".svg",
         hp: DEFAULT_HP,
@@ -121,12 +125,12 @@ function defaultState() {
       },
       {
         id: ids[2],
-        x: 5,
-        y: 5,
+        x: 9,
+        y: 3,
         name: "baz",
         lastPlayedTurn: -1,
-        user: "ia3",
-        team: "3",
+        user: "me",
+        team: "1",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[2] + ".svg",
         hp: DEFAULT_HP,
@@ -138,8 +142,8 @@ function defaultState() {
         y: 11,
         name: "zoo",
         lastPlayedTurn: -1,
-        user: "ia4",
-        team: "4",
+        user: "ia",
+        team: "2",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[3] + ".svg",
         hp: DEFAULT_HP,
@@ -151,10 +155,23 @@ function defaultState() {
         y: 11,
         name: "moo",
         lastPlayedTurn: -1,
-        user: "ia5",
-        team: "5",
+        user: "ia",
+        team: "2",
         pa: DEFAULT_PA,
         avatar: "https://avatars.dicebear.com/api/bottts/" + ids[4] + ".svg",
+        hp: DEFAULT_HP,
+        cooldown: {},
+      },
+      {
+        id: ids[5],
+        x: 6,
+        y: 11,
+        name: "noo",
+        lastPlayedTurn: -1,
+        user: "ia",
+        team: "2",
+        pa: DEFAULT_PA,
+        avatar: "https://avatars.dicebear.com/api/bottts/" + ids[5] + ".svg",
         hp: DEFAULT_HP,
         cooldown: {},
       },

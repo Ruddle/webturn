@@ -217,6 +217,14 @@ export function enumeratePossibleActions(state) {
       allActions.push({ type: "arrow", target: enemy.id });
     }
   });
+
+  //Fire
+  state.chars.forEach((enemy) => {
+    if (enemy.team !== currentChar.team) {
+      allActions.push({ type: "fire", x: enemy.x, y: enemy.y });
+    }
+  });
+
   //Pass
   {
     allActions.push({ type: "pass" });
@@ -405,7 +413,7 @@ export function evaluateAction(state, action) {
 
     if (!currentChar.cooldown[action.type]) {
       let d = diffPos(currentChar, action);
-      let canReach = d.l > 0 && d.l <= power.maxDist;
+      let canReach = d.l <= power.maxDist;
       if (canReach) {
         let hasEnoughMana = cost <= currentChar.pa;
         if (hasEnoughMana) {
@@ -475,6 +483,8 @@ export function applyEffects(state, effects, animation = false) {
       char.hp = Math.max(0, char.hp - effect.hpLost);
 
       if (wasPositive && char.hp <= 0 && state.currentChar.id === char.id) {
+        state.nextChars = nextChars(state);
+        state.currentChar = state.nextChars[0];
         newEffects.push({ type: EFFECT_TYPES.END_TURN, charId: effect.charId });
       }
     } else if (effect.type === EFFECT_TYPES.LOSE_PA) {
