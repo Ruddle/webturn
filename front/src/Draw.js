@@ -229,39 +229,14 @@ export default function Draw({ state, user, do_action }) {
           {_.chunk(state.map.tiles, state.map.w).map((row, rowIndex) => (
             <div key={rowIndex} style={{ display: "flex" }}>
               {row.map((tile, colIndex) => (
-                <div
+                <Tile
                   key={colIndex}
-                  style={{
-                    width: "50px",
-                    height: "50px",
-                    position: "relative",
-                    transition: "50ms",
-                    background: swi(
-                      [tile.type === 1, "#333"],
-                      [
-                        tile.type === 0 &&
-                          tileHover?.index ===
-                            colIndex + state.map.w * rowIndex,
-                        "#bbb",
-                      ],
-                      "#999"
-                    ),
-                  }}
-                >
-                  {tile.effects.map((effect) => (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%,-50%)",
-                        width: "30px",
-                        height: "30px",
-                        background: "#f609",
-                      }}
-                    ></div>
-                  ))}
-                </div>
+                  tile={tile}
+                  tileHover={tileHover}
+                  colIndex={colIndex}
+                  rowIndex={rowIndex}
+                  state={state}
+                ></Tile>
               ))}
             </div>
           ))}
@@ -973,6 +948,43 @@ function Detail({ tileHover, charHover, state }) {
         ],
         <div>Hover something</div>
       )}
+    </div>
+  );
+}
+
+function Tile({ colIndex, rowIndex, state, tile, tileHover }) {
+  return (
+    <div
+      key={colIndex}
+      style={{
+        width: "50px",
+        height: "50px",
+        position: "relative",
+        transition: "50ms",
+        background: swi(
+          [tile.type === 1, "#333"],
+          [
+            tile.type === 0 &&
+              tileHover?.index === colIndex + state.map.w * rowIndex,
+            "#bbb",
+          ],
+          "#999"
+        ),
+      }}
+    >
+      {tile.effects.map((effect) => (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            width: "30px",
+            height: "30px",
+            background: "#f609",
+          }}
+        ></div>
+      ))}
     </div>
   );
 }
